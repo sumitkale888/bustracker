@@ -1,28 +1,16 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "http://localhost:8000";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 5000,
 });
 
-const fallbackRoutes = [
-  { id: "1", name: "Route A" },
-  { id: "2", name: "Route B" },
-  { id: "3", name: "Route C" },
-];
-
 export async function fetchRoutes() {
-  try {
-    const { data } = await api.get("/buses");
-    return data.map((bus) => ({
-      id: String(bus.id),
-      name: bus.route_name,
-    }));
-  } catch {
-    return fallbackRoutes;
-  }
+  const { data } = await api.get("/buses");
+  const uniqueRouteNames = [...new Set(data.map((bus) => bus.route_name))];
+  return uniqueRouteNames.map((routeName) => ({ id: routeName, name: routeName }));
 }
 
 export async function fetchBuses() {
@@ -38,7 +26,7 @@ export async function sendCrowdReport(routeName, crowdLevel) {
   return data;
 }
 
-export async function fetchSuggestion(crowdLevel) {
-  const { data } = await api.post("/suggest", { crowd_level: crowdLevel });
+export async function fetchSuggestion(routeName) {
+  const { data } = await api.get("/suggest", { params: { route_name: routeName } });
   return data;
 }

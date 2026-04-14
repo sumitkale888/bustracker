@@ -1,39 +1,11 @@
-from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Query
+
+from .store import crowd_reports
 
 
 router = APIRouter(tags=["Suggestions"])
-
-
-class SuggestInput(BaseModel):
-    crowd_level: Literal["low", "medium", "high"]
-
-
-def get_time_slot_and_level(current_hour: int) -> tuple[str, Literal["low", "medium", "high"]]:
-    if 6 <= current_hour <= 11:
-        return "morning", "high"
-    if 12 <= current_hour <= 16:
-        return "afternoon", "medium"
-    return "evening_or_night", "low"
-
-
-def level_to_score(level: Literal["low", "medium", "high"]) -> int:
-    if level == "low":
-        return 1
-    if level == "medium":
-        return 2
-    return 3
-
-
-def score_to_level(score: int) -> Literal["low", "medium", "high"]:
-    if score <= 1:
-        return "low"
-    if score == 2:
-        return "medium"
-    return "high"
 
 
 def suggestion_for_level(level: Literal["low", "medium", "high"]) -> str:
@@ -44,24 +16,12 @@ def suggestion_for_level(level: Literal["low", "medium", "high"]) -> str:
     return "Reduce bus"
 
 
-@router.post("/suggest")
-def suggest_bus_action(payload: SuggestInput) -> dict[str, str | int]:
-    current_hour = datetime.now().hour
-    time_slot, time_based_level = get_time_slot_and_level(current_hour)
+@router.get("/suggest")
+def suggest_bus_action(route_name: str = Query(..., min_length=1)) -> dict[str, str]:
+    matching_reports = [report for report in crowd_reports if report["route_name"] == route_name]
 
-    user_score = level_to_score(payload.crowd_level)
-    time_score = level_to_score(time_based_level)
-    # Round half up to blend user input and time-based baseline.
-    blended_score = int(((user_score + time_score) / 2) + 0.5)
-    effective_level = score_to_level(blended_score)
-    action = suggestion_for_level(effective_level)
+    if not matching_reports:
+        return {"action": "No change"}
 
-    return {
-        "suggestion": action,
-        "crowd_level": effective_level,
-        "user_crowd_level": payload.crowd_level,
-        "time_based_crowd_level": time_based_level,
-        "effective_crowd_level": effective_level,
-        "time_slot": time_slot,
-        "current_hour": current_hour,
-    }
+    latest_level = matching_reports[-1]["crowd_level"]
+    return {"action": suggestion_for_level(latest_level)}

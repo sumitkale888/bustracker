@@ -20,12 +20,24 @@ function RouteSuggestionPanel() {
 
     const loadRoutes = async () => {
       setIsLoadingRoutes(true);
-      const data = await fetchRoutes();
-      if (!isMounted) {
-        return;
+      try {
+        const data = await fetchRoutes();
+        if (!isMounted) {
+          return;
+        }
+        setRoutes(data);
+        setError("");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+        setRoutes([]);
+        setError("Unable to load routes. Please check backend connection.");
+      } finally {
+        if (isMounted) {
+          setIsLoadingRoutes(false);
+        }
       }
-      setRoutes(data);
-      setIsLoadingRoutes(false);
     };
 
     loadRoutes();
@@ -39,12 +51,6 @@ function RouteSuggestionPanel() {
     const route = routes.find((item) => item.id === selectedRoute);
     return route?.name || "";
   }, [routes, selectedRoute]);
-
-  const fallbackByCrowd = {
-    low: "Reduce bus",
-    medium: "No change",
-    high: "Add bus",
-  };
 
   const handleCrowdSelect = async (level) => {
     setSelectedCrowd(level);
@@ -60,22 +66,17 @@ function RouteSuggestionPanel() {
 
     try {
       const crowdData = await sendCrowdReport(selectedRouteName, level);
-      const suggestionData = await fetchSuggestion(level);
+      const suggestionData = await fetchSuggestion(selectedRouteName);
       setSuggestion({
-        ...suggestionData,
+        action: suggestionData.action,
+        crowd_level: level,
         routeName: selectedRouteName,
         crowdMessage: crowdData.message,
         totalReports: crowdData.total_reports,
       });
     } catch {
-      setSuggestion({
-        crowd_level: level,
-        effective_crowd_level: level,
-        user_crowd_level: level,
-        suggestion: fallbackByCrowd[level],
-        routeName: selectedRouteName,
-      });
-      setError("Could not connect to /crowd and /suggest. Showing fallback suggestion.");
+      setSuggestion(null);
+      setError("Could not process crowd update or suggestion request. Please try again.");
     } finally {
       setIsSuggesting(false);
     }

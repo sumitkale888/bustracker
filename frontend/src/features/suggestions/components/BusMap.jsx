@@ -3,17 +3,6 @@ import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 
 import { fetchBuses } from "../api/suggestionApi";
 
-const fallbackBuses = [
-  { id: 1, route_name: "Route A", latitude: 12.9716, longitude: 77.5946 },
-  { id: 2, route_name: "Route B", latitude: 12.9784, longitude: 77.6408 },
-  { id: 3, route_name: "Route C", latitude: 12.9352, longitude: 77.6245 },
-];
-
-function jitterCoordinate(value) {
-  const delta = (Math.random() - 0.5) * 0.002;
-  return Number((value + delta).toFixed(6));
-}
-
 function BusMap({ selectedRouteName }) {
   const [buses, setBuses] = useState([]);
   const [error, setError] = useState("");
@@ -33,39 +22,22 @@ function BusMap({ selectedRouteName }) {
         if (!isMounted) {
           return;
         }
-        setBuses(fallbackBuses);
-        setError("Could not fetch /buses. Showing fallback bus positions.");
+        setError("Unable to fetch bus locations right now.");
       }
     };
 
     loadBuses();
+    const timer = setInterval(loadBuses, 3000);
 
     return () => {
       isMounted = false;
+      clearInterval(timer);
     };
   }, []);
 
-  useEffect(() => {
-    if (!buses.length) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setBuses((current) =>
-        current.map((bus) => ({
-          ...bus,
-          latitude: jitterCoordinate(bus.latitude),
-          longitude: jitterCoordinate(bus.longitude),
-        })),
-      );
-    }, 2500);
-
-    return () => clearInterval(timer);
-  }, [buses.length]);
-
   const mapCenter = useMemo(() => {
     if (!buses.length) {
-      return [12.9716, 77.5946];
+      return [18.5204, 73.8567];
     }
 
     const lat = buses.reduce((sum, bus) => sum + bus.latitude, 0) / buses.length;
@@ -77,7 +49,7 @@ function BusMap({ selectedRouteName }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold tracking-wide text-slate-700">Live Bus Map</p>
-        <p className="text-xs text-slate-500">Markers move every 2.5s</p>
+        <p className="text-xs text-slate-500">Synced from /buses every 3s</p>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
