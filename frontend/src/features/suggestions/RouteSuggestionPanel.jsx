@@ -110,4 +110,9 @@ function RouteSuggestionPanel() {
 
           <BusMap selectedRouteName={selectedRouteName} />
         </div>
-      </sect
+      </section>
+    </main>
+  );
+}
+
+export default RouteSuggestionPanel;
